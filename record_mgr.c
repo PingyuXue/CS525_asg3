@@ -380,7 +380,9 @@ RC openTable (RM_TableData *rel, char *name) {
     flag2 = flag;
     
     // get key size and return valeu
-    getkeysize(flag2, keyAttrs_cr);
+//    getkeysize(flag2, keyAttrs_cr);
+    
+    getkeysize(flag2, keysize_cr);
 
     keyAttrs_cr = (int *) malloc(keysize_cr * sizeint);
     
