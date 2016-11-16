@@ -38,4 +38,4 @@ record_mgr.o : record_mgr.c
 .PHONY : clean
 clean :
 	#rm test_expr 
-	test
+	rm test
