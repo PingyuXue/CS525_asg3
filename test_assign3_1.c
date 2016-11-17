@@ -1,11 +1,9 @@
-
 #include <stdlib.h>
 #include "dberror.h"
 #include "expr.h"
 #include "record_mgr.h"
 #include "tables.h"
 #include "test_helper.h"
-
 
 
 #define ASSERT_EQUALS_RECORDS(_l,_r, schema, message)			\
@@ -86,9 +84,6 @@ main (void)
   testScans();
   testScansTwo();
   testMultipleScans();
-
-    printf("test3 done\n");
-    printf("cao ni mei de , lao zi paowan le !\n");
 
   return 0;
 }
