@@ -182,6 +182,15 @@ RC forcePage (BM_BufferPool *const bm, BM_PageHandle *const page)
 RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page,
             const PageNumber pageNum)
 {
+    
+    RC rc = -99;
+    
+    if (bm == NULL){
+        printf("input error, ------pinpage\n");
+        return rc ;
+    }
+    
+    
     int pnum = 0;
     int flag = 0;
     
@@ -260,6 +269,7 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page,
                 fp = fopen(bm->pageFile, "r");
                 fseek(fp, pageNum * PAGE_SIZE, SEEK_SET);
                 fread((bm->mgmtData + pnum)->data, sizeof(char), PAGE_SIZE, fp);
+                
                 page->data = (bm->mgmtData + pnum)->data;
                 bm->numRead++;
                 ((bm->mgmtData + pnum)->fixCount)++;
@@ -283,34 +293,7 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page,
                 break;
             }
         }
-//    if (flag == 1)
-//    {
-//        FILE* fp;
-//        fp = fopen(bm->pageFile, "r");
-//        fseek(fp, pageNum * PAGE_SIZE, SEEK_SET);
-//        fread((bm->mgmtData + pnum)->data, sizeof(char), PAGE_SIZE, fp);
-//        page->data = (bm->mgmtData + pnum)->data;
-//        bm->numRead++;
-//        ((bm->mgmtData + pnum)->fixCount)++;
-//        (bm->mgmtData + pnum)->pageNum = pageNum;
-//        page->fixCount = (bm->mgmtData + pnum)->fixCount;
-//        page->pageNum = pageNum;
-//        page->dirty = (bm->mgmtData + pnum)->dirty;
-//        page->strategyType = (bm->mgmtData + pnum)->strategyType;
-//        updataAttribute(bm, bm->mgmtData + pnum);
-//        fclose(fp);
-//    }
-//    if (flag == 2)
-//    {
-//        page->data = (bm->mgmtData + pnum)->data;
-//        ((bm->mgmtData + pnum)->fixCount)++;
-//        page->fixCount = (bm->mgmtData + pnum)->fixCount;
-//        page->pageNum = pageNum;
-//        page->dirty = (bm->mgmtData + pnum)->dirty;
-//        page->strategyType = (bm->mgmtData + pnum)->strategyType;
-//        //if(bm->strategy==RS_LRU)
-//        //  updataAttribute(bm, bm->mgmtData+pnum);
-//    }
+    
     return RC_OK;
 }
 
@@ -319,86 +302,79 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page,
 /***************************************************************
  * Function Name: getFrameContents
  *
- * Description: Returns an array of PageNumbers where the ith element is the number of the page stored in the ith page frame
- *
- * Parameters: BM_BufferPool *const bm
- *
- * Return: PageNumber *
- *
- * Author: Xincheng Yang
- *
- * History:
- *      Date            Name                        Content
- *   2016/2/27      Xincheng Yang             first time to implement the function
- *
 ***************************************************************/
 PageNumber *getFrameContents (BM_BufferPool *const bm) {
-    PageNumber *arr = (PageNumber*)malloc(bm->numPages * sizeof(PageNumber));
+    
+    
+    PageNumber *trans = (PageNumber*)calloc(bm->numPages, sizeof(PageNumber));
     BM_PageHandle *handle = bm->mgmtData;
 
-    int i;
-    for (i = 0; i < bm->numPages; i++) {
+    int i =0;
+    int numpage = bm->numPages;
+//    for (i = 0; i < bm->numPages; i++) {
+    while(i < numpage){
         if ((handle + i)->data == NULL) {
-            arr[i] = NO_PAGE;
+            trans[i] = NO_PAGE;
         } else {
-            arr[i] = (handle + i)->pageNum;
+            trans[i] = (handle + i)->pageNum;
         }
+        i++;
     }
-    return arr;
+    return trans;
 }
 
 /***************************************************************
  * Function Name: getDirtyFlags
  *
- * Description: Returns an array of bools where the ith element is TRUE if the page stored in the ith page frame is dirty
- *
- * Parameters: BM_BufferPool *const bm
- *
- * Return: bool *
- *
- * Author: Xincheng Yang
- *
- * History:
- *      Date            Name                        Content
- *   2016/2/27      Xincheng Yang             first time to implement the function
  *
 ***************************************************************/
 bool *getDirtyFlags (BM_BufferPool *const bm) {
-    bool *arr = (bool*)malloc(bm->numPages * sizeof(bool));
+    
+    RC rc = -99;
+    if (bm == NULL){
+        printf("input error, ------getDirtyFlag\n");
+        return rc;
+    }
+    
+    bool *arr = (bool*)calloc(bm->numPages , sizeof(bool));
+    
     BM_PageHandle *handle = bm->mgmtData;
 
-    int i;
-
-    for (i = 0; i < bm->numPages; i++) {
+    int i = 0 ;
+    int page = bm->numPages;
+//    for (i = 0; i < bm->numPages; i++) {
+    while ( i< page ){
         arr[i] = (handle + i)->dirty;
+        i++;
     }
+    
     return arr;
 }
 
 /***************************************************************
  * Function Name: getFixCounts
  *
- * Description: Returns an array of ints where the ith element is the fix count of the page stored in the ith page frame
- *
- * Parameters: BM_BufferPool *const bm
- *
- * Return: int *
- *
- * Author: Xincheng Yang
- *
- * History:
- *      Date            Name                        Content
- *   2016/2/27      Xincheng Yang             first time to implement the function
- *
 ***************************************************************/
 int *getFixCounts (BM_BufferPool *const bm) {
+    
+    RC rc = -99;
+    
+    if ( bm == NULL){
+        printf("input error, -----getFixCount\n");
+        return rc;
+    }
+    
     int *arr = (int*)malloc(bm->numPages * sizeof(int));
     BM_PageHandle *handle = bm->mgmtData;
 
-    int i;
-    for (i = 0; i < bm->numPages; i++) {
+    int i =0;
+    int pageNum = bm->numPages;
+//    for (i = 0; i < bm->numPages; i++) {
+    while (i <pageNum){
         arr[i] = (handle + i)->fixCount;
+        i++;
     }
+    
     return arr;
 }
 
@@ -460,30 +436,47 @@ int getNumWriteIO (BM_BufferPool *const bm) {
 ***************************************************************/
 
 int strategyFIFOandLRU(BM_BufferPool *bm) {
+    
+    RC rc = -99;
+    
+    if (bm == NULL){
+        printf("input error, ------strategy\n");
+        return rc;
+    }
+    
     int * attributes;
     int * fixCounts;
-    int i;
     int min, abortPage;
+    int pagenum = bm->numPages;
 
     attributes = (int *)getAttributionArray(bm);
     fixCounts = getFixCounts(bm);
 
     min = bm->time;
     abortPage = -1;
+    
+    int i = 0;
+    
 
-    for (i = 0; i < bm->numPages; ++i) {
+//    for (i = 0; i < bm->numPages; ++i) {
+    while (i < pagenum){
         if (*(fixCounts + i) != 0) continue;
 
         if (min >= (*(attributes + i))) {
             abortPage = i;
             min = (*(attributes + i));
         }
+        i++;
     }
 
     if ((bm->time) > 32000) {
         (bm->time) -= min;
-        for (i = 0; i < bm->numPages; ++i) {
+    
+        int j =0;
+//        for (i = 0; i < bm->numPages; ++i) {
+        while ( j< pagenum){
             *(bm->mgmtData->strategyType) -= min;
+            j++;
         }
     }
     return abortPage;
@@ -492,29 +485,27 @@ int strategyFIFOandLRU(BM_BufferPool *bm) {
 /***************************************************************
  * Function Name: getAttributionArray
  *
- * Description: return an array that includes all pages strategyAttribute.
- *
- * Parameters: BM_BufferPool *bm
- *
- * Return: int*
- *
- * Author: Xiaoliang Wu
- *
- * History:
- *      Date            Name                        Content
- *      16/02/27        Xiaoliang Wu                Complete.
- *
 ***************************************************************/
 
 int *getAttributionArray(BM_BufferPool *bm) {
+    
+    RC rc = -99;
+    if (bm == NULL){
+        printf("input error, ------getAttributionArray\n");
+        return rc;
+    }
+    
     int *attributes;
     int *flag;
-    int i;
-
+    int i = 0;
+    int pageNum = bm->numPages;
     attributes = (int *)calloc(bm->numPages, sizeof((bm->mgmtData)->strategyType));
-    for (i = 0; i < bm->numPages; ++i) {
+    
+//    for (i = 0; i < bm->numPages; ++i) {
+    while (i < pageNum ){
         flag = attributes + i;
         *flag = *((bm->mgmtData + i)->strategyType);
+        i++;
     }
     return attributes;
 }
