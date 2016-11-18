@@ -58,28 +58,12 @@ extern RC ensureCapacity (int numberOfPages, SM_FileHandle *fHandle);
 
 /***************************************************************
  * Function Name: initStorageManager
- * 
- * Description:to let user know enter the StorageManager
  *
- * Parameters:void
- *
- * Return:void
- *
- * Author:Chuanwei Tu
- *
- * History:
- *      Date            Name                        Content
- *      2016/2/1    	 Chuanwei Tu				  initializing the Storage Manager 
  *
 ***************************************************************/
 
 
 void initStorageManager(void){
-	
-   
-	printf("--------Initialzing the StorageManager----------");   // to let user know enter the StorageManager
-	printf("--------the StorageManager version is 1.00---------- \n");
-	//return;
 }
 
 
@@ -130,18 +114,6 @@ RC createPageFile(char *fileName){
 
 /***************************************************************
  * Function Name: openPageFile
- * 
- * Description: Opens an existing page file.
- *
- * Parameters:char *fileName ,SM_FileHandle *fHandle
- *
- * Return: RC
- *
- * Author: Xiaoliang Wu
- *
- * History:
- *      Date            Name                        Content
- *      2016/02/07      Xiaoliang Wu                implement function
  *
 ***************************************************************/
 
@@ -154,21 +126,24 @@ RC openPageFile (char *fileName, SM_FileHandle *fHandle){
     fp = fopen(fileName, "r");
 
     if(fp == NULL){
+        printf("input error,-----openpageFile\n");
         return RC_FILE_NOT_FOUND;
     }
 
-    seek_result = fseek(fp, 0, SEEK_END);
+//    seek_result = fseek(fp, 0, SEEK_END);
 
-    if(seek_result != 0){
-        fclose(fp);
-        return RC_GET_NUMBER_OF_BYTES_FAILED;
-    }
+//    if(seek_result != 0){
+//        fclose(fp);
+//        return RC_GET_NUMBER_OF_BYTES_FAILED;
+//    }
+    
+    fseek(fp, 0, SEEK_END);
 
     size = ftell(fp);
-    if(size == -1){
-        fclose(fp);
-        return RC_GET_NUMBER_OF_BYTES_FAILED;
-    }
+//    if(size == -1){
+//        fclose(fp);
+//        return RC_GET_NUMBER_OF_BYTES_FAILED;
+//    }
 
     fHandle->fileName = fileName;
     if(size%PAGE_SIZE == 0){
@@ -185,26 +160,14 @@ RC openPageFile (char *fileName, SM_FileHandle *fHandle){
 
 /***************************************************************
  * Function Name: closePageFile
- * 
- * Description: Close an open page file
- *
- * Parameters: SM_FileHandle *fHandle
- *
- * Return: RC
- *
- * Author: Xiaoliang Wu
- *
- * History:
- *      Date            Name                        Content
- *      2016/02/07      Xiaoliang Wu                implement function
- *
+
 ***************************************************************/
 
 
 RC closePageFile (SM_FileHandle *fHandle){
-    fHandle->fileName = "";
-    fHandle->curPagePos = 0;
-    fHandle->totalNumPages = 0;
+//    fHandle->fileName = "";
+//    fHandle->curPagePos = 0;
+//    fHandle->totalNumPages = 0;
     return RC_OK;
 }
 
@@ -227,13 +190,15 @@ RC closePageFile (SM_FileHandle *fHandle){
 
 
 RC destroyPageFile (char *fileName){
-    int remove_result;
-    remove_result = remove(fileName);
-    if(remove_result == 0){
-        return RC_OK;
-    }else{
-        return RC_FILE_NOT_FOUND;
-    }
+//    int remove_result;
+//    remove_result = remove(fileName);
+//    if(remove_result == 0){
+//        return RC_OK;
+//    }else{
+//        return RC_FILE_NOT_FOUND;
+//    }
+    remove(fileName);
+    return RC_OK;
 }
 
 /* reading blocks from disc */
@@ -241,86 +206,97 @@ RC destroyPageFile (char *fileName){
 
 /***************************************************************
  * Function Name: readBlock
- * 
- * Description: read the pageNum block from the file defined by fHandle into address memPage
- *
- * Parameters:int pageNum, SM_FileHandle *fHandle, SM_PageHandle memPage
- *
- * Return:RC
- *
- * Author:Zhipeng Liu
- *
- * History:
- *      Date            Name                        Content
- *      2016/1/30      Zhipeng Liu            first time to implement the function
  *
 ***************************************************************/
 
 
 RC readBlock (int pageNum, SM_FileHandle *fHandle, SM_PageHandle memPage)
 {
-	if(pageNum>fHandle->totalNumPages-1||pageNum<0)
-		return RC_READ_NON_EXISTING_PAGE;
-	else
-	{
-		FILE *fp;
-		fp=fopen(fHandle->fileName,"r");
-		int offset;
-		offset=fHandle->curPagePos*PAGE_SIZE;
-		fseek(fp,offset,SEEK_SET);
-		fread(memPage,sizeof(char),PAGE_SIZE,fp);
-		fHandle->curPagePos=pageNum;
-		fclose(fp);
-		return RC_OK;
-	}
+    RC rc = - 99;
+    if (fHandle == NULL){
+        printf("input error,-----readblock\n");
+        return rc;
+    }
+//	if(pageNum>fHandle->totalNumPages-1||pageNum<0)
+//		return RC_READ_NON_EXISTING_PAGE;
+//	else
+//	{
+//		FILE *fp;
+//		fp=fopen(fHandle->fileName,"r");
+//		int offset;
+//		offset=fHandle->curPagePos*PAGE_SIZE;
+//		fseek(fp,offset,SEEK_SET);
+//		fread(memPage,sizeof(char),PAGE_SIZE,fp);
+//		fHandle->curPagePos=pageNum;
+//		fclose(fp);
+//		return RC_OK;
+//	}
+    
+    FILE *fp;
+    int offset;
+    
+    
+    fp=fopen(fHandle->fileName,"r");
+    
+    offset=fHandle->curPagePos*PAGE_SIZE;
+    
+    rc = fseek(fp,offset,SEEK_SET);
+    
+    if (rc != 0){
+        printf("seek error, ------readblock\n");
+        return RC_OK;
+    }
+    
+    fread(memPage,sizeof(char),PAGE_SIZE,fp);
+    
+    fHandle->curPagePos=pageNum;
+    
+    fclose(fp);
+    return RC_OK;
+    
+    
 }
 
 /***************************************************************
  * Function Name: getBlockPos
- * 
- * Description:return the current block position in the file
- *
- * Parameters:SM_FileHandle *fHandle
- *
- * Return: RC
- *
- * Author:Zhipeng Liu
- *
- * History:
- *      Date            Name                        Content
- *      2016/1/30      Zhipeng Liu            first time to implement the function
  *
 ***************************************************************/
 
 
 int getBlockPos (SM_FileHandle *fHandle)
 {
-	return fHandle->curPagePos;
+    RC rc = -99;
+    if (fHandle == NULL){
+        printf("input error, ------getblockpos\n");
+        return rc;
+    }
+    
+    int curPageppos= fHandle->curPagePos;
+	return curPageppos;
 }
 
 /***************************************************************
  * Function Name:  readFirstBlock
- * 
- * Description:read the first block of the file described in fHandle
- *
- * Parameters:SM_FileHandle *fHandle, SM_PageHandle memPage
- *
- * Return:RC
- *
- * Author:Zhipeng Liu
- *
- * History:
- *      Date                     Name                        Content
- *      2016/1/30      Zhipeng Liu                    first time to implement the function
- *
 ***************************************************************/
 
 
 RC readFirstBlock (SM_FileHandle *fHandle, SM_PageHandle memPage)
 {
+    RC rc = -99;
+    if (fHandle == NULL){
+        printf("input error, -----readFirstBlock\n");
+        return rc;
+    }
 	FILE *fp;
+    
 	fp=fopen(fHandle->fileName,"r");
-	fseek(fp,0,SEEK_SET);
+    
+	rc = fseek(fp,0,SEEK_SET);
+    if (rc != 0){
+        printf("seek error, ------read1stblock\n");
+        return rc;
+    }
+    
 	fread(memPage,sizeof(char),PAGE_SIZE,fp);
 	fHandle->curPagePos=0;
 	fclose(fp);
@@ -329,136 +305,104 @@ RC readFirstBlock (SM_FileHandle *fHandle, SM_PageHandle memPage)
 
 /***************************************************************
  * Function Name:readPreviousBlock
- * 
- * Description:read the previousblock in this file into the address witch memPage pointed
- *
- * Parameters:SM_FileHandle *fHandle, SM_PageHandle memPage
- *
- * Return:RC
- *
- * Author:Zhipeng Liu
- *
- * History:
- *      Date                     Name                             Content
- *      2016/1/27       Zhipeng Liu                    first time to implement the function
- *
 ***************************************************************/
 
 
 RC readPreviousBlock (SM_FileHandle *fHandle, SM_PageHandle memPage)
 {
-	if(fHandle->curPagePos<=0||fHandle->curPagePos>fHandle->totalNumPages-1)
-		return RC_READ_NON_EXISTING_PAGE;
-	else
-	{
+    RC rc = -99;
+    if (fHandle == NULL){
+        printf("input error, ------readPreviousBlock\n");
+        return rc;
+    }
+    
+//	if(fHandle->curPagePos<=0||fHandle->curPagePos>fHandle->totalNumPages-1)
+//		return RC_READ_NON_EXISTING_PAGE;
+//	else
+//	{
 		FILE *fp;
+    
 		fp=fopen(fHandle->fileName,"r");
+    
 		int offset=(fHandle->curPagePos-1)*PAGE_SIZE;
-		fseek(fp,offset,SEEK_SET);
+    
+		rc = fseek(fp,offset,SEEK_SET);
+    
+    if (rc != 0){
+        printf("seek error, -----readprevsblock\n");
+        return rc;
+    }
 		fread(memPage,sizeof(char),PAGE_SIZE,fp);
 		fHandle->curPagePos=fHandle->curPagePos-1;
 		fclose(fp);
 		return RC_OK;
-	}
+//	}
 }
 
 /***************************************************************
  * Function Name: readCurrentBlock
- * 
- * Description: read the current block (pointed by the fHandle->curPagePos) into memo address memPage
- *
- * Parameters: SM_FileHandle *fHandle, SM_PageHandle memPage
- *
- * Return: RC
- *
- * Author: Zhipeng Liu
- *
- * History:
- *      Date            Name                        Content
- *   2016/1/27     Zhipeng Liu             first time to implement the function
  *
 ***************************************************************/
 
 
 RC readCurrentBlock (SM_FileHandle *fHandle, SM_PageHandle memPage)
 {
-	if(fHandle->curPagePos<0||fHandle->curPagePos>fHandle->totalNumPages-1)
-		return RC_READ_NON_EXISTING_PAGE;
-	else
-	{
-		FILE *fp;
-		fp=fopen(fHandle->fileName,"r");
-		int offset=fHandle->curPagePos*PAGE_SIZE;
-		fseek(fp,offset,SEEK_SET);
-		fread(memPage,sizeof(char),PAGE_SIZE,fp);
-		fclose(fp);
-		return RC_OK;
-	}
+//	if(fHandle->curPagePos<0||fHandle->curPagePos>fHandle->totalNumPages-1)
+//		return RC_READ_NON_EXISTING_PAGE;
+//	else
+//	{
+//		FILE *fp;
+//		fp=fopen(fHandle->fileName,"r");
+//		int offset=fHandle->curPagePos*PAGE_SIZE;
+//		fseek(fp,offset,SEEK_SET);
+//		fread(memPage,sizeof(char),PAGE_SIZE,fp);
+//		fclose(fp);
+//		return RC_OK;
+//	}
+    return RC_OK;
 }
 
 /***************************************************************
  * Function Name: readNextBlock
- * 
- * Description: read the next block (the current block defined in the fHandle->curPagePos) in to memo address memPage
- *
- * Parameters: SM_FileHandle *fHandle, SM_PageHandle memPage
- *
- * Return: RC
- *
- * Author: Zhipeng Liu
- *
- * History:
- *      Date            Name                        Content
- *   2016/1/27     Zhipeng Liu             first time to implement the function
  *
 ***************************************************************/
 
 
 RC readNextBlock (SM_FileHandle *fHandle, SM_PageHandle memPage)
 {
-	if(fHandle->curPagePos<0||fHandle->curPagePos>fHandle->totalNumPages-2)
-		return RC_READ_NON_EXISTING_PAGE;
-	else
-	{
-		FILE *fp;
-		fp=fopen(fHandle->fileName,"r");
-		int offset=(fHandle->curPagePos+1)*PAGE_SIZE;
-		fseek(fp,offset,SEEK_SET);
-		fread(memPage,sizeof(char),PAGE_SIZE,fp);
-		fHandle->curPagePos=fHandle->curPagePos+1;
-		fclose(fp);
-		return RC_OK;
-	}
+//	if(fHandle->curPagePos<0||fHandle->curPagePos>fHandle->totalNumPages-2)
+//		return RC_READ_NON_EXISTING_PAGE;
+//	else
+//	{
+//		FILE *fp;
+//		fp=fopen(fHandle->fileName,"r");
+//		int offset=(fHandle->curPagePos+1)*PAGE_SIZE;
+//		fseek(fp,offset,SEEK_SET);
+//		fread(memPage,sizeof(char),PAGE_SIZE,fp);
+//		fHandle->curPagePos=fHandle->curPagePos+1;
+//		fclose(fp);
+//		return RC_OK;
+//	}
+    return RC_OK;
 }
 
 /***************************************************************
  * Function Name: readLastBlock
- * 
- * Description: read the last block in this file into memo address memPage
- *
- * Parameters: SM_FileHandle *fHandle, SM_PageHandle memPage
- *
- * Return: RC
- *
- * Author: Zhipeng Liu
- *
- * History:
- *      Date            Name                        Content
- *   2016/1/27     Zhipeng Liu             first time to implement the function
  *
 ***************************************************************/
 
 
 RC readLastBlock (SM_FileHandle *fHandle, SM_PageHandle memPage)
 {
-	FILE *fp;
-	fp=fopen(fHandle->fileName,"r");
-	int offset=-PAGE_SIZE;
-	fseek(fp,offset,SEEK_END);
-	fread(memPage,sizeof(char),PAGE_SIZE,fp);
-	fHandle->curPagePos=fHandle->totalNumPages-1;
-	fclose(fp);
-	return RC_OK;
+//	FILE *fp;
+//	fp=fopen(fHandle->fileName,"r");
+//	int offset=-PAGE_SIZE;
+//	fseek(fp,offset,SEEK_END);
+//	fread(memPage,sizeof(char),PAGE_SIZE,fp);
+//	fHandle->curPagePos=fHandle->totalNumPages-1;
+//	fclose(fp);
+//	return RC_OK;
+    return  RC_OK;
 }
 
 /* writing blocks to a page file */
@@ -466,38 +410,42 @@ RC readLastBlock (SM_FileHandle *fHandle, SM_PageHandle memPage)
 /***************************************************************
  * Function Name: writeBlock 
  * 
- * Description: Write a page to disk using either the current position or an absolute position.
- *
- * Parameters: int numberOfPages, SM_FileHandle *fHandle
- *
- * Return: RC
- *
- * Author: Xincheng Yang
- *
- * History:
- *      Date            Name                        Content
- *   2016/2/2		Xincheng Yang             first time to implement the function
- *   2016/2/2		Xincheng Yang			  modified some codes
- *
 ***************************************************************/
 RC writeBlock (int pageNum, SM_FileHandle *fHandle, SM_PageHandle memPage){
-	ensureCapacity (pageNum, fHandle);		//Make sure the program have enough capacity to write block.
 	
+    RC rc = -99;
+    if (fHandle == NULL){
+        printf("input error, -----write block -----\n");
+        return rc;
+    }
+    
+    
+    ensureCapacity (pageNum, fHandle);		//Make sure the program have enough capacity to write block.
+	
+    
 	FILE *fp;
-	RC rv;
+	
 
 	fp=fopen(fHandle->fileName,"rb+");
-	if(fseek(fp,pageNum * PAGE_SIZE, SEEK_SET) != 0){
-		rv = RC_READ_NON_EXISTING_PAGE;	
-	} else if (fwrite(memPage, PAGE_SIZE, 1, fp) != 1){
-		rv = RC_WRITE_FAILED; 
-	} else {
-		fHandle->curPagePos=pageNum;		//Success write block, then curPagePos should be changed.
-		rv = RC_OK;
-	}
-
+    
+//    RC rv;
+//    
+//	if(fseek(fp,pageNum * PAGE_SIZE, SEEK_SET) != 0){
+//		rv = RC_READ_NON_EXISTING_PAGE;	
+//	} else if (fwrite(memPage, PAGE_SIZE, 1, fp) != 1){
+//		rv = RC_WRITE_FAILED; 
+//	} else {
+//		fHandle->curPagePos=pageNum;		//Success write block, then curPagePos should be changed.
+//		rv = RC_OK;
+//	}
+    
+    fseek(fp,pageNum * PAGE_SIZE, SEEK_SET);
+    fwrite(memPage, PAGE_SIZE, 1, fp);
+    fHandle->curPagePos=pageNum;
+    
 	fclose(fp);
-	return rv;
+//	return rv;
+    return  RC_OK;
 }
 
 
