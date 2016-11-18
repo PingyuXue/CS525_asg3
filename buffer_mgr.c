@@ -249,23 +249,10 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page,
                 default:
                     break;
             }
-//            if (bm->strategy == RS_FIFO)
-//            {
-//                pnum = strategyFIFOandLRU(bm);
-//                if ((bm->mgmtData + pnum)->dirty)
-//                    forcePage (bm, bm->mgmtData + pnum);
-//            }
-//            if (bm->strategy == RS_LRU)
-//            {
-//                pnum = strategyFIFOandLRU(bm);
-//                if ((bm->mgmtData + pnum)->dirty)
-//                    forcePage (bm, bm->mgmtData + pnum);
-//            }
         }
         i++;
     }
     
-//     change to switch
         switch (flag){
             case 1:
             {
@@ -280,10 +267,6 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page,
                 bm->numRead++;
                 ((bm->mgmtData + pnum)->fixCount)++;
                 (bm->mgmtData + pnum)->pageNum = pageNum;
-//                page->fixCount = (bm->mgmtData + pnum)->fixCount;
-//                page->pageNum = pageNum;
-//                page->dirty = (bm->mgmtData + pnum)->dirty;
-//                page->strategyType = (bm->mgmtData + pnum)->strategyType;
                 getPageDetail(bm, page, pageNum, pnum);
                 rc = updataAttribute(bm, bm->mgmtData + pnum);
                 if (rc != RC_OK){
@@ -297,10 +280,7 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page,
             {
                 page->data = (bm->mgmtData + pnum)->data;
                 ((bm->mgmtData + pnum)->fixCount)++;
-//                page->fixCount = (bm->mgmtData + pnum)->fixCount;
-//                page->pageNum = pageNum;
-//                page->dirty = (bm->mgmtData + pnum)->dirty;
-//                page->strategyType = (bm->mgmtData + pnum)->strategyType;
+
                 getPageDetail(bm, page, pageNum,pnum);
                 break;
             }
@@ -418,10 +398,6 @@ int getNumWriteIO (BM_BufferPool *const bm) {
 
 /***************************************************************
  * Function Name: strategyFIFOandLRU
- *
- * Description: decide use which frame to save data using FIFO.
- *
- * Parameters: BM_BufferPool *bm
  ****************************************************************/
 
 int strategyFIFOandLRU(BM_BufferPool *bm) {
