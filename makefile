@@ -36,6 +36,5 @@ record_mgr.o : record_mgr.c
 	gcc -c record_mgr.c -I .
 
 .PHONY : clean
-clean :
-	#rm test_expr 
+clean : 
 	rm test
