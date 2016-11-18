@@ -1,16 +1,26 @@
-#ifndef STORAGE_MGR_H
-#define STORAGE_MGR_H
+//
+//  storage_mgr.h
+//  testcode_2_0920
+//
+//  Created by Pingyu Xue on 9/21/16.
+//  Copyright © 2016 Pingyu Xue. All rights reserved.
+//
 
+
+#ifndef storage_mgr_h
+#define storage_mgr_h
+
+#include <stdio.h>
 #include "dberror.h"
 
 /************************************************************
  *                    handle data structures                *
  ************************************************************/
 typedef struct SM_FileHandle {
-  char *fileName;
-  int totalNumPages;
-  int curPagePos;
-  void *mgmtInfo;
+    char *fileName;
+    int totalNumPages;
+    int curPagePos;
+    void *mgmtInfo;
 } SM_FileHandle;
 
 typedef char* SM_PageHandle;
@@ -40,4 +50,5 @@ extern RC writeCurrentBlock (SM_FileHandle *fHandle, SM_PageHandle memPage);
 extern RC appendEmptyBlock (SM_FileHandle *fHandle);
 extern RC ensureCapacity (int numberOfPages, SM_FileHandle *fHandle);
 
-#endif
+
+#endif /* storage_mgr_h */
