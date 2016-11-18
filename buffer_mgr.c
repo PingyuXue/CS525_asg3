@@ -32,6 +32,8 @@ RC initBufferPool(BM_BufferPool *const bm, const char *const pageFileName,
     bm->numWrite = 0;
     bm->time = 0;
     
+    
+    
     return RC_OK;
 }
 
@@ -39,13 +41,15 @@ RC initBufferPool(BM_BufferPool *const bm, const char *const pageFileName,
  * Function Name: initPages
  ***************************************************************/
 RC initPages(BM_BufferPool *const bm, const int numPages) {
-    int i;
-    for (i = 0; i < numPages; i++)
+    int i = 0;
+//    for (i = 0; i < numPages; i++)
+    while (i < numPages)
     {
         (bm->mgmtData + i)->fixCount = 0;
         (bm->mgmtData + i)->dirty = 0;
         (bm->mgmtData + i)->pageNum = -1;
         (bm->mgmtData + i)->data = NULL;
+        i++;
     }
     return RC_OK;
 }
@@ -381,18 +385,6 @@ int *getFixCounts (BM_BufferPool *const bm) {
 /***************************************************************
  * Function Name: getNumReadIO
  *
- * Description: Returns an array of ints where the ith element is the fix count of the page stored in the ith page frame
- *
- * Parameters: BM_BufferPool *const bm
- *
- * Return: int
- *
- * Author: Xincheng Yang
- *
- * History:
- *      Date            Name                        Content
- *   2016/2/27      Xincheng Yang             first time to implement the function
- *
 ***************************************************************/
 int getNumReadIO (BM_BufferPool *const bm) {
     return bm->numRead;
@@ -400,18 +392,6 @@ int getNumReadIO (BM_BufferPool *const bm) {
 
 /***************************************************************
  * Function Name: getNumWriteIO
- *
- * Description: Returns an array of ints where the ith element is the fix count of the page stored in the ith page frame
- *
- * Parameters: BM_BufferPool *const bm
- *
- * Return: int
- *
- * Author: Xincheng Yang
- *
- * History:
- *      Date            Name                        Content
- *   2016/2/27      Xincheng Yang             first time to implement the function
  *
 ***************************************************************/
 int getNumWriteIO (BM_BufferPool *const bm) {
