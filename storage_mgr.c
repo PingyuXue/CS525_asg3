@@ -70,18 +70,6 @@ void initStorageManager(void){
 
 /***************************************************************
  * Function Name: createPageFile
- * 
- * Description: Create a new page file fileName. The initial file size should be one page. This method should fill this single page with '\0' bytes.
- *
- * Parameters: char *fileName
- *
- * Return: RC
- *
- * Author: Xiaoliang Wu
- *
- * History:
- *      Date            Name                        Content
- *      --------------  --------------------------  ----------------
  *      2016/02/07      Xiaoliang Wu                implement function
  *
 ***************************************************************/
@@ -102,11 +90,11 @@ RC createPageFile(char *fileName){
     memset(fill, '\0', sizeof(fill));
     write_result = fwrite(fill, 1, PAGE_SIZE, fp);
 
-    if(write_result != PAGE_SIZE){
-        fclose(fp);
-        destroyPageFile(fileName);
-        return RC_CREATE_FILE_FAIL;
-    }
+//    if(write_result != PAGE_SIZE){
+//        fclose(fp);
+//        destroyPageFile(fileName);
+//        return RC_CREATE_FILE_FAIL;
+//    }
 
     fclose(fp);
     return RC_OK;
@@ -409,7 +397,7 @@ RC readLastBlock (SM_FileHandle *fHandle, SM_PageHandle memPage)
 
 /***************************************************************
  * Function Name: writeBlock 
- * 
+ *
 ***************************************************************/
 RC writeBlock (int pageNum, SM_FileHandle *fHandle, SM_PageHandle memPage){
 	
@@ -451,94 +439,83 @@ RC writeBlock (int pageNum, SM_FileHandle *fHandle, SM_PageHandle memPage){
 
 /***************************************************************
  * Function Name: writeCurrentBlock 
- * 
- * Description: Write a page to disk using either the current position or an absolute position.
- *
- * Parameters: int numberOfPages, SM_FileHandle *fHandle
- *
- * Return: RC
- *
- * Author: Xincheng Yang
- *
- * History:
- *      Date            Name                        Content
- *   2016/2/2		Xincheng Yang             first time to implement the function
- *
+ 
 ***************************************************************/
 RC writeCurrentBlock (SM_FileHandle *fHandle, SM_PageHandle memPage){
-	if(fHandle == NULL){
-		return RC_FILE_HANDLE_NOT_INIT;
-	} 
-	if(fHandle->curPagePos < 0){
-		return RC_WRITE_FAILED;
-	}
-
+//	if(fHandle == NULL){
+//		return RC_FILE_HANDLE_NOT_INIT;
+//	} 
+//	if(fHandle->curPagePos < 0){
+//		return RC_WRITE_FAILED;
+//	}
+    
+    RC rc = -99;
+    if (fHandle == NULL){
+        printf("input error, -------writeCurrent BLock\n");
+        return rc;
+    }
+    
 	return writeBlock(fHandle->curPagePos, fHandle, memPage);
 }
 
 /***************************************************************
  * Function Name: appendEmptyBlock 
- * 
- * Description: Increase the number of pages in the file by one. The new last page should be filled with zero bytes.
- *
- * Parameters: int numberOfPages, SM_FileHandle *fHandle
- *
- * Return: RC
- *
- * Author: Xincheng Yang
- *
- * History:
- *      Date            Name                        Content
- *   2016/2/1		Xincheng Yang             first time to implement the function
- *   2016/2/2		Xincheng Yang			  modified some codes
- *
+
 ***************************************************************/
 RC appendEmptyBlock (SM_FileHandle *fHandle){
-	if(fHandle == NULL){
-		return RC_FILE_HANDLE_NOT_INIT;
-	} 
+    
+    RC rc = -99;
+    
+    if (fHandle == NULL){
+        printf("input error, -----appendEmptyBlock\n");
+        return rc;
+    }
+//    
+//	if(fHandle == NULL){
+//		return RC_FILE_HANDLE_NOT_INIT;
+//	} 
 
 	FILE *fp;
 	char *allocData;
 	RC rv;
 
-	allocData = (char *)calloc(1, PAGE_SIZE);
+//	allocData = (char *)calloc(1, PAGE_SIZE);
+    allocData = (char *)malloc (PAGE_SIZE);
+    
 	fp=fopen(fHandle->fileName,"ab+");
 
-	if(fwrite(allocData, PAGE_SIZE, 1, fp) != 1)   
-	{
-		rv = RC_WRITE_FAILED;
-	} else {
-		fHandle -> totalNumPages += 1;
-		rv = RC_OK;		
-	}
-
+//	if(fwrite(allocData, PAGE_SIZE, 1, fp) != 1)   
+//	{
+//		rv = RC_WRITE_FAILED;
+//	} else {
+//		fHandle -> totalNumPages += 1;
+//		rv = RC_OK;		
+//	}
+    
+    fwrite(allocData, PAGE_SIZE, 1, fp);
+    fHandle -> totalNumPages += 1;
 	free(allocData);
 	fclose(fp);
 
-	return  rv;
+//	return  rv;
+    return RC_OK;
 }
 
 /***************************************************************
  * Function Name: ensureCapacity 
- * 
- * Description: If the file has less than numberOfPages pages then increase the size to numberOfPages.
- *
- * Parameters: int numberOfPages, SM_FileHandle *fHandle
- *
- * Return: RC
- *
- * Author: Xincheng Yang
- *
- * History:
- *      Date            Name                        Content
- *   2016/2/1		Xincheng Yang             first time to implement the function
  *
 ***************************************************************/
 RC ensureCapacity (int numberOfPages, SM_FileHandle *fHandle){
-	if(fHandle == NULL){
-		return RC_FILE_HANDLE_NOT_INIT;
-	} 
+    
+    RC rc = -99;
+    if (fHandle == NULL){
+        printf(" input error, ------ensureCapacity\n");
+        return rc;
+    }
+    
+//	if(fHandle == NULL){
+//		return RC_FILE_HANDLE_NOT_INIT;
+//	} 
 	if(fHandle -> totalNumPages >= numberOfPages){
 		return RC_OK;
 	}
@@ -546,23 +523,28 @@ RC ensureCapacity (int numberOfPages, SM_FileHandle *fHandle){
 	FILE *fp;
 	long allocCapacity;
 	char *allocData;
-	RC rv;
+//	RC rv;
 
 	allocCapacity= (numberOfPages - fHandle -> totalNumPages) * PAGE_SIZE;
-	allocData = (char *)calloc(1,allocCapacity);
+//	allocData = (char *)calloc(1,allocCapacity);
+    allocData = (char *) malloc(allocCapacity);
 	
 	fp=fopen(fHandle->fileName,"ab+");
    
-	if(fwrite(allocData, allocCapacity, 1, fp) == 0)   
-	{
-		rv = RC_WRITE_FAILED;
-	} else {
-		fHandle -> totalNumPages = numberOfPages;		//When write success, totalNumPages should be changed to numberOfPages.	
-		rv = RC_OK;
-	}
+//	if(fwrite(allocData, allocCapacity, 1, fp) == 0)   
+//	{
+//		rv = RC_WRITE_FAILED;
+//	} else {
+//		fHandle -> totalNumPages = numberOfPages;		//When write success, totalNumPages should be changed to numberOfPages.	
+//		rv = RC_OK;
+//	}
+    
+    fwrite(allocData, allocCapacity, 1, fp);
+    fHandle -> totalNumPages = numberOfPages;
 
 	free(allocData);
 	fclose(fp);
 
-	return rv;
+//	return rv;
+    return  RC_OK;
 }
