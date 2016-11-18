@@ -271,18 +271,25 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page,
             {
                 FILE* fp;
                 fp = fopen(bm->pageFile, "r");
+                
                 fseek(fp, pageNum * PAGE_SIZE, SEEK_SET);
+                
                 fread((bm->mgmtData + pnum)->data, sizeof(char), PAGE_SIZE, fp);
                 
                 page->data = (bm->mgmtData + pnum)->data;
                 bm->numRead++;
                 ((bm->mgmtData + pnum)->fixCount)++;
                 (bm->mgmtData + pnum)->pageNum = pageNum;
-                page->fixCount = (bm->mgmtData + pnum)->fixCount;
-                page->pageNum = pageNum;
-                page->dirty = (bm->mgmtData + pnum)->dirty;
-                page->strategyType = (bm->mgmtData + pnum)->strategyType;
-                updataAttribute(bm, bm->mgmtData + pnum);
+//                page->fixCount = (bm->mgmtData + pnum)->fixCount;
+//                page->pageNum = pageNum;
+//                page->dirty = (bm->mgmtData + pnum)->dirty;
+//                page->strategyType = (bm->mgmtData + pnum)->strategyType;
+                getPageDetail(bm, page, pageNum, pnum);
+                rc = updataAttribute(bm, bm->mgmtData + pnum);
+                if (rc != RC_OK){
+                    printf("set error, ------pinpage()\n");
+                    return rc;
+                }
                 fclose(fp);
                 break;
             }
@@ -290,14 +297,25 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page,
             {
                 page->data = (bm->mgmtData + pnum)->data;
                 ((bm->mgmtData + pnum)->fixCount)++;
-                page->fixCount = (bm->mgmtData + pnum)->fixCount;
-                page->pageNum = pageNum;
-                page->dirty = (bm->mgmtData + pnum)->dirty;
-                page->strategyType = (bm->mgmtData + pnum)->strategyType;
+//                page->fixCount = (bm->mgmtData + pnum)->fixCount;
+//                page->pageNum = pageNum;
+//                page->dirty = (bm->mgmtData + pnum)->dirty;
+//                page->strategyType = (bm->mgmtData + pnum)->strategyType;
+                getPageDetail(bm, page, pageNum,pnum);
                 break;
             }
         }
     
+    return RC_OK;
+}
+
+RC getPageDetail (BM_BufferPool *const bm, BM_PageHandle *const page,
+            const PageNumber pageNum,int pnum){
+    
+    page->fixCount = (bm->mgmtData + pnum)->fixCount;
+    page->dirty = (bm->mgmtData + pnum)->dirty;
+    page->pageNum = pageNum;
+    page->strategyType = (bm->mgmtData + pnum)->strategyType;
     return RC_OK;
 }
 
@@ -404,16 +422,7 @@ int getNumWriteIO (BM_BufferPool *const bm) {
  * Description: decide use which frame to save data using FIFO.
  *
  * Parameters: BM_BufferPool *bm
- *
- * Return: int
- *
- * Author: Xiaoliang Wu
- *
- * History:
- *      Date            Name                        Content
- *      16/02/27        Xiaoliang Wu                Complete
- *
-***************************************************************/
+ ****************************************************************/
 
 int strategyFIFOandLRU(BM_BufferPool *bm) {
     
@@ -426,14 +435,14 @@ int strategyFIFOandLRU(BM_BufferPool *bm) {
     
     int * attributes;
     int * fixCounts;
-    int min, abortPage;
+    int min = bm->time;
+    int abortPage = -1;
     int pagenum = bm->numPages;
 
     attributes = (int *)getAttributionArray(bm);
     fixCounts = getFixCounts(bm);
 
-    min = bm->time;
-    abortPage = -1;
+
     
     int i = 0;
     
@@ -449,7 +458,7 @@ int strategyFIFOandLRU(BM_BufferPool *bm) {
         i++;
     }
 
-    if ((bm->time) > 32000) {
+    if ((bm->time) > 35000) {
         (bm->time) -= min;
     
         int j =0;
@@ -469,6 +478,7 @@ int strategyFIFOandLRU(BM_BufferPool *bm) {
 
 int *getAttributionArray(BM_BufferPool *bm) {
     
+ 
     RC rc = -99;
     if (bm == NULL){
         printf("input error, ------getAttributionArray\n");
@@ -499,12 +509,7 @@ int *getAttributionArray(BM_BufferPool *bm) {
  *
  * Return: RC
  *
- * Author: Xiaoliang Wu
- *
- * History:
- *      Date            Name                        Content
- *      16/02/26        Xiaoliang Wu                FIFO, LRU complete.
- *
+ * Author:
 ***************************************************************/
 
 RC updataAttribute(BM_BufferPool *bm, BM_PageHandle *pageHandle) {
