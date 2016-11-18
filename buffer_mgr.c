@@ -62,30 +62,36 @@ typedef struct BM_PageHandle {
 RC initBufferPool(BM_BufferPool *const bm, const char *const pageFileName,
                   const int numPages, ReplacementStrategy strategy,
                   void *stratData) {
-    FILE *file;
-    int i;
 
-    file = fopen(pageFileName, "r");
-    if (file == NULL) {
+    FILE *fp = fopen(pageFileName, "r");
+    if (fp == NULL) {
         return RC_FILE_NOT_FOUND;
-    } else {
-        fclose(file);
     }
-    bm->pageFile = (char *)pageFileName;
+    fclose(fp);
+    
     bm->numPages = numPages;
     bm->strategy = strategy;
-    BM_PageHandle* buff = (BM_PageHandle *)calloc(numPages, sizeof(BM_PageHandle));
-    bm->mgmtData = buff;
+    bm->pageFile = (char *)pageFileName;
+    bm->mgmtData = (BM_PageHandle *)calloc(numPages, sizeof(BM_PageHandle));
+    
+    initPages(bm, numPages);
+    
+    bm->numRead = 0;
+    bm->numWrite = 0;
+    bm->time = 0;
+    
+    return RC_OK;
+}
+
+RC initPages(BM_BufferPool *const bm, const int numPages) {
+    int i;
     for (i = 0; i < numPages; i++)
     {
+        (bm->mgmtData + i)->fixCount = 0;
         (bm->mgmtData + i)->dirty = 0;
-        (bm->mgmtData + i)->fixCounts = 0;
-        (bm->mgmtData + i)->data = NULL;
         (bm->mgmtData + i)->pageNum = -1;
+        (bm->mgmtData + i)->data = NULL;
     }
-    bm->numReadIO = 0;
-    bm->numWriteIO = 0;
-    bm->timer = 0;
     return RC_OK;
 }
 
@@ -110,27 +116,28 @@ RC initBufferPool(BM_BufferPool *const bm, const char *const pageFileName,
 
 
 RC shutdownBufferPool(BM_BufferPool *const bm) {
-    int *fixCounts;
-    int i;
-    RC RC_flag;
-
-    fixCounts = getFixCounts(bm);
-    for (i = 0; i < bm->numPages; ++i) {
-        if (*(fixCounts + i)) {
-            free(fixCounts);
+    int *counts = getFixCounts(bm);
+    int i = 0; 
+    
+    while (i < bm->numPages) {
+        if (*(counts + i)) {
+            free(counts);
             return RC_SHUTDOWN_POOL_FAILED;
         }
+        i++;
     }
 
-    RC_flag = forceFlushPool(bm);
-    if (RC_flag != RC_OK) {
-        free(fixCounts);
-        return RC_flag;
+    forceFlushPool(bm);
+    
+    //Free pageBuffer
+    for (i = 0; i < bm->numPages; i++) {
+        free((bm->mgmtData + i)->data); 
+        free((bm->mgmtData + i)->strategyType);
     }
-
-    freePagesBuffer(bm);
-    free(fixCounts);
+    
+    free(counts);
     free(bm->mgmtData);
+    
     return RC_OK;
 }
 
@@ -153,39 +160,33 @@ RC shutdownBufferPool(BM_BufferPool *const bm) {
 ***************************************************************/
 
 RC forceFlushPool(BM_BufferPool *const bm) {
-    bool *dirtyFlags;
-    int *fixCounts;
-    int i;
-    BM_PageHandle* page;
-    RC RC_flag;
+    
+    bool *dirtys = getDirtyFlags(bm);
+    int *fixs = getFixCounts(bm);
 
-    dirtyFlags = getDirtyFlags(bm);
-    fixCounts = getFixCounts(bm);
-
-    for (i = 0; i < bm->numPages; ++i) {
-        if (*(dirtyFlags + i)) {
-//printf("%s\n",*(dirtyFlags)?"true":"false");
-            if (*(fixCounts + i)) {
+    int i = 0;
+    while (i < bm->numPages) {
+        if (*(dirtys + i) && *(fixs + i)) {
                 continue;
-            } else {
-                page = ((bm->mgmtData) + i);
-                RC_flag = forcePage(bm, page);
-                if (RC_flag != RC_OK) {
-                    free(dirtyFlags);
-                    free(fixCounts);
-                    return RC_flag;
-                }
+        } else {
+            RC RC_flag = forcePage(bm, ((bm->mgmtData) + i));
+            if (RC_flag != RC_OK) {
+                free(dirtys);
+                free(fixs);
+                return RC_flag;
             }
         }
-    }
-    for (i = 0; i < bm->numPages; ++i)
-    {
-        if (*(dirtyFlags + i))
+        
+        if (*(dirtys + i)) {
             ((bm->mgmtData) + i)->dirty = 0;
-    }
+        }
+        
+        i++;
+   } 
 
-    free(dirtyFlags);
-    free(fixCounts);
+    free(dirtys);
+    free(fixs);
+    
     return RC_OK;
 }
 
@@ -207,18 +208,23 @@ RC forceFlushPool(BM_BufferPool *const bm) {
  *      02/25/16        Zhipeng Liu                 complete
 ***************************************************************/
 
-RC markDirty (BM_BufferPool *const bm, BM_PageHandle *const page)
-{
-    int i;
-    for (i = 0; i < (bm->numPages); i++)
+int seekPage (BM_BufferPool *const bm, BM_PageHandle *const page) {
+    int index;
+    for (index = 0; index < (bm->numPages); index++)
     {
-        if ((bm->mgmtData + i)->pageNum == page->pageNum)
+        if ((bm->mgmtData + index)->pageNum == page->pageNum)
         {
-            page->dirty = 1;
-            (bm->mgmtData + i)->dirty = 1;
-            break;
+            return index;
         }
     }
+    return -1;
+}
+
+RC markDirty (BM_BufferPool *const bm, BM_PageHandle *const page)
+{
+    int index = seekPage(bm, page);
+    page->dirty = 1;
+    (bm->mgmtData + index)->dirty = 1;
     return RC_OK;
 }
 
@@ -240,16 +246,8 @@ RC markDirty (BM_BufferPool *const bm, BM_PageHandle *const page)
 
 RC unpinPage (BM_BufferPool *const bm, BM_PageHandle *const page)
 {
-    int i;
-    for (i = 0; i < bm->numPages; i++)
-    {
-        if ((bm->mgmtData + i)->pageNum == page->pageNum)
-        {
-            (bm->mgmtData + i)->fixCounts--;
-//          page->fixCounts--;
-            break;
-        }
-    }
+    int index = seekPage(bm, page);
+    (bm->mgmtData + index)->fixCount -= 1;
     return RC_OK;
 }
 
@@ -271,28 +269,19 @@ RC unpinPage (BM_BufferPool *const bm, BM_PageHandle *const page)
 
 RC forcePage (BM_BufferPool *const bm, BM_PageHandle *const page)
 {
-    FILE *fp;
-    int i;
-
-
-
-    fp = fopen(bm->pageFile, "rb+");
-    fseek(fp, (page->pageNum)*PAGE_SIZE, SEEK_SET);
+    FILE *fp = fopen(bm->pageFile, "rb+");
+    fseek(fp, PAGE_SIZE*(page->pageNum), SEEK_SET);
+    
     fwrite(page->data, PAGE_SIZE, 1, fp);
-    (bm->numWriteIO)++;
+    
+    (bm->numWrite) += 1;
     fclose(fp);
-//      free(page->data);
-    for (i = 0; i < bm->numPages; i++)
-    {
-        if ((bm->mgmtData + i)->pageNum == page->pageNum)
-        {
-            (bm->mgmtData + i)->dirty = 0;
-//          (bm->mgmtData+i)->pageNum=-1;
-            break;
-        }
-    }
+    
+    int index = seekPage(bm, page);
+    (bm->mgmtData + index)->dirty = 0;
+
     page->dirty = 0;
-//page->pageNum=-1;
+
     return RC_OK;
 }
 
@@ -317,9 +306,9 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page,
 {
     int pnum = 0;
     int flag = 0;
-    int i;
-
-    for (i = 0; i < bm->numPages; i++)
+    
+    int i = 0;
+    while (i < bm->numPages)
     {
         if ((bm->mgmtData + i)->pageNum == -1)
         {
@@ -328,6 +317,7 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page,
             flag = 1;
             break;
         }
+        
         if ((bm->mgmtData + i)->pageNum == pageNum)
         {
             pnum = i;
@@ -336,10 +326,11 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page,
                 updataAttribute(bm, bm->mgmtData + pnum);
             break;
         }
+        
         if (i == bm->numPages - 1)
         {
 
-            flag = 1;;
+            flag = 1;
             if (bm->strategy == RS_FIFO)
             {
                 pnum = strategyFIFOandLRU(bm);
@@ -353,7 +344,9 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page,
                     forcePage (bm, bm->mgmtData + pnum);
             }
         }
+        i++;
     }
+    
     if (flag == 1)
     {
         FILE* fp;
@@ -361,24 +354,24 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page,
         fseek(fp, pageNum * PAGE_SIZE, SEEK_SET);
         fread((bm->mgmtData + pnum)->data, sizeof(char), PAGE_SIZE, fp);
         page->data = (bm->mgmtData + pnum)->data;
-        bm->numReadIO++;
-        ((bm->mgmtData + pnum)->fixCounts)++;
+        bm->numRead++;
+        ((bm->mgmtData + pnum)->fixCount)++;
         (bm->mgmtData + pnum)->pageNum = pageNum;
-        page->fixCounts = (bm->mgmtData + pnum)->fixCounts;
+        page->fixCount = (bm->mgmtData + pnum)->fixCount;
         page->pageNum = pageNum;
         page->dirty = (bm->mgmtData + pnum)->dirty;
-        page->strategyAttribute = (bm->mgmtData + pnum)->strategyAttribute;
+        page->strategyType = (bm->mgmtData + pnum)->strategyType;
         updataAttribute(bm, bm->mgmtData + pnum);
         fclose(fp);
     }
     if (flag == 2)
     {
         page->data = (bm->mgmtData + pnum)->data;
-        ((bm->mgmtData + pnum)->fixCounts)++;
-        page->fixCounts = (bm->mgmtData + pnum)->fixCounts;
+        ((bm->mgmtData + pnum)->fixCount)++;
+        page->fixCount = (bm->mgmtData + pnum)->fixCount;
         page->pageNum = pageNum;
         page->dirty = (bm->mgmtData + pnum)->dirty;
-        page->strategyAttribute = (bm->mgmtData + pnum)->strategyAttribute;
+        page->strategyType = (bm->mgmtData + pnum)->strategyType;
         //if(bm->strategy==RS_LRU)
         //  updataAttribute(bm, bm->mgmtData+pnum);
     }
@@ -468,7 +461,7 @@ int *getFixCounts (BM_BufferPool *const bm) {
 
     int i;
     for (i = 0; i < bm->numPages; i++) {
-        arr[i] = (handle + i)->fixCounts;
+        arr[i] = (handle + i)->fixCount;
     }
     return arr;
 }
@@ -490,7 +483,7 @@ int *getFixCounts (BM_BufferPool *const bm) {
  *
 ***************************************************************/
 int getNumReadIO (BM_BufferPool *const bm) {
-    return bm->numReadIO;
+    return bm->numRead;
 }
 
 /***************************************************************
@@ -510,7 +503,7 @@ int getNumReadIO (BM_BufferPool *const bm) {
  *
 ***************************************************************/
 int getNumWriteIO (BM_BufferPool *const bm) {
-    return bm->numWriteIO;
+    return bm->numWrite;
 }
 
 /***************************************************************
@@ -539,7 +532,7 @@ int strategyFIFOandLRU(BM_BufferPool *bm) {
     attributes = (int *)getAttributionArray(bm);
     fixCounts = getFixCounts(bm);
 
-    min = bm->timer;
+    min = bm->time;
     abortPage = -1;
 
     for (i = 0; i < bm->numPages; ++i) {
@@ -551,10 +544,10 @@ int strategyFIFOandLRU(BM_BufferPool *bm) {
         }
     }
 
-    if ((bm->timer) > 32000) {
-        (bm->timer) -= min;
+    if ((bm->time) > 32000) {
+        (bm->time) -= min;
         for (i = 0; i < bm->numPages; ++i) {
-            *(bm->mgmtData->strategyAttribute) -= min;
+            *(bm->mgmtData->strategyType) -= min;
         }
     }
     return abortPage;
@@ -582,37 +575,12 @@ int *getAttributionArray(BM_BufferPool *bm) {
     int *flag;
     int i;
 
-    attributes = (int *)calloc(bm->numPages, sizeof((bm->mgmtData)->strategyAttribute));
+    attributes = (int *)calloc(bm->numPages, sizeof((bm->mgmtData)->strategyType));
     for (i = 0; i < bm->numPages; ++i) {
         flag = attributes + i;
-        *flag = *((bm->mgmtData + i)->strategyAttribute);
+        *flag = *((bm->mgmtData + i)->strategyType);
     }
     return attributes;
-}
-
-/***************************************************************
- * Function Name: freePagesBuffer
- *
- * Description: free all pages in pool.
- *
- * Parameters: BM_BufferPool *bm
- *
- * Return: RC
- *
- * Author: Xiaoliang Wu
- *
- * History:
- *      Date            Name                        Content
- *      16/02/26        Xiaoliang Wu                Complete.
- *
-***************************************************************/
-
-void freePagesBuffer(BM_BufferPool *bm) {
-    int i;
-    for (i = 0; i < bm->numPages; ++i) {
-        free((bm->mgmtData + i)->data); 
-        free((bm->mgmtData + i)->strategyAttribute);
-    }
 }
 
 /***************************************************************
@@ -634,10 +602,10 @@ void freePagesBuffer(BM_BufferPool *bm) {
 
 RC updataAttribute(BM_BufferPool *bm, BM_PageHandle *pageHandle) {
     // initial page strategy attribute assign buffer
-    if (pageHandle->strategyAttribute == NULL) {
+    if (pageHandle->strategyType == NULL) {
 
         if (bm->strategy == RS_FIFO || bm->strategy == RS_LRU) {
-            pageHandle->strategyAttribute = calloc(1, sizeof(int));
+            pageHandle->strategyType = calloc(1, sizeof(int));
         }
 
     }
@@ -645,9 +613,9 @@ RC updataAttribute(BM_BufferPool *bm, BM_PageHandle *pageHandle) {
     // assign number
     if (bm->strategy == RS_FIFO || bm->strategy == RS_LRU) {
         int * attribute;
-        attribute = (int *)pageHandle->strategyAttribute;
-        *attribute = (bm->timer);
-        (bm->timer)++;
+        attribute = (int *)pageHandle->strategyType;
+        *attribute = (bm->time);
+        (bm->time)++;
         return RC_OK;
     }
 
